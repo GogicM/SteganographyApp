@@ -1,9 +1,11 @@
 package controllers;
 
 import java.awt.Desktop;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
@@ -29,6 +31,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Alert.AlertType;
@@ -49,6 +52,8 @@ public class UserPanelController {
     private static final int PORT_NUMBER = 9999;
     private static String PATH = "src/server/users";
     
+    protected static String newFileData;
+
     protected static ObservableList<String> data = FXCollections.observableArrayList();
 
     @FXML
@@ -56,37 +61,33 @@ public class UserPanelController {
     @FXML
     private Button sendMessageButton;
     @FXML
-    private Button downloadButton;
+    private Button showNewButton;
     @FXML
-    private Button showLogsButton;
-    @FXML
-    private TextArea messageField;
-    @FXML
-    private TextArea logs;
-    @FXML
-    private TextArea newFileContent;
-    @FXML
-    private Button uploadNewButton;
+    private Button browsePictureButton;
 
-    protected static String newFileData;
-
+//    @FXML
+//    private Button showLogsButton;
+    @FXML
+    private TextArea writeNewMessage;
+    @FXML
+    private TextArea viewNewMessages;
+    @FXML
+    private Label newMessagesLabel;
     @FXML
     private void initialize() {
-    //    tArea.setVisible(false);
-       // logs.setVisible(false);
-//        try {
-//            String[] fileNames = getFileNames();
-//            data.addAll(fileNames);
-//
-//        } catch (ClassNotFoundException | IOException e1) {
-//            e1.printStackTrace();
-//        } catch (InvalidKeyException e) {
-//            e.printStackTrace();
-//        } catch (IllegalBlockSizeException e) {
-//            e.printStackTrace();
-//        } catch (BadPaddingException e) {
-//            e.printStackTrace();
-//        }
+
+    	viewNewMessages.setVisible(false);
+    	try {
+    		File f = new File("src/controllers/users.txt");
+    		BufferedReader bReader = new BufferedReader(new FileReader(f));
+    		String s = null;
+    		while ((s = bReader.readLine()) != null) {
+    			String uName = s.split("#")[0];
+    			data.add(uName);
+    		}
+    	} catch(IOException e) {
+    		e.printStackTrace();
+    	}
         list.setItems(data);
         userName = SignInController.uName;
 
@@ -94,11 +95,14 @@ public class UserPanelController {
                 new ChangeListener<String>() {
             public void changed(ObservableValue<? extends String> ov,
                     String old_val, String new_val) {
+            	
             	selectedUsername =  new_val;
+                System.out.println(selectedUsername);
+
             }
         });
-
         SignInController.stage1.show();
+
     }
 
 //    @FXML
@@ -181,105 +185,112 @@ public class UserPanelController {
 //        logs.setVisible(true);
 //    }
 
-    @FXML
-    protected void handleUploadNewFile(ActionEvent event) {
-        if (newFileContent.getText().isEmpty()) {
-            alert("You can't upload empty file!");
-        } else {
-            FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("fxml/uploadNewFileForm.fxml"));
-            try {
-                newFileData = newFileContent.getText();
-                Parent root = (Parent) loader.load();
-
-                SendNewMessageController controller = loader.getController();
-
-                Stage stage = new Stage();
-                stage.setTitle(" User panel");
-                stage.setScene(new Scene(root));
-                stage.show();
+//    @FXML
+//    protected void handleUploadNewFile(ActionEvent event) {
+//        if (newFileContent.getText().isEmpty()) {
+//            alert("You can't upload empty file!");
+//        } else {
+//            FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("fxml/uploadNewFileForm.fxml"));
+//            try {
+//                newFileData = newFileContent.getText();
+//                Parent root = (Parent) loader.load();
+//
+//                SendNewMessageController controller = loader.getController();
+//
+//                Stage stage = new Stage();
+//                stage.setTitle(" User panel");
+//                stage.setScene(new Scene(root));
+//                stage.show();
 //        stage.hide();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
 
 
-    @FXML
-    protected void handleBrowseButton(ActionEvent event) {
-        FileChooser fileChooser = new FileChooser();
-        configureFileChooser(fileChooser);
-        File file = new File("src/certificates");
-        if (file.exists()) {
-            //bug in FileChooser, one must set initial directory or it will throw exception
-            fileChooser.setInitialDirectory(file);
-        }
-        file = fileChooser.showOpenDialog(SignInController.stage1);
-        if(true) { //mokup condition, when I complete it, it will check can message fit in image
-        	alert("Message can not fit in selected image.");
-        	sendMessageButton.setVisible(false);
-        }
-        if (messageField.getText() != null ) {
-        	sendMessageButton.setVisible(true);
-        }
-
-    }
+//    @FXML
+//    protected void handleBrowseButton(ActionEvent event) {
+//        FileChooser fileChooser = new FileChooser();
+//        configureFileChooser(fileChooser);
+//        File file = new File("src/certificates");
+//        if (file.exists()) {
+//            //bug in FileChooser, one must set initial directory or it will throw exception
+//            fileChooser.setInitialDirectory(file);
+//        }
+//        file = fileChooser.showOpenDialog(SignInController.stage1);
+//        if(true) { //mokup condition, when I complete it, it will check can message fit in image
+//        	alert("Message can not fit in selected image.");
+//        	sendMessageButton.setVisible(false);
+//        }
+//        if (messageField.getText() != null ) {
+//        	sendMessageButton.setVisible(true);
+//        }
+//    }
+    
     @FXML
     protected void handleSendMessageButton(ActionEvent e) {
     	
     }
-    private Window getStage() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	private static void configureFileChooser(final FileChooser fileChooser) {
-
-        fileChooser.setTitle("Select your certificate");
-        fileChooser.setInitialDirectory(new File("../certificates"));
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("CRT", "*.crt"));
-    }
-
-    private void openFile(File file) {
-        try {
-            desktop.open(file);
-        } catch (IOException e) {
-            Logger.getLogger(SignInController.class.getName()).log(Level.SEVERE, null, e);
-        }
+    
+    @FXML
+    protected void handleShowNewMessagesButton(ActionEvent e) {
+    	newMessagesLabel.setVisible(false);
+    	viewNewMessages.setVisible(false);
     }
     
-    private String[] getFileNames() throws IOException, ClassNotFoundException,
-            InvalidKeyException, IllegalBlockSizeException,
-            BadPaddingException {
-
-        String[] userNames;
-        String[] cUserNames;
-        String option = "users";
-        String encOption = SignInController.asymmetricCrypto.EncryptStringAsymmetric("users", SignInController.serverPublicKey);
-        String signature = null;
-        try {
-            signature = SignInController.asymmetricCrypto.signMessagge(option, SignInController.privateKey);
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        }
-        SignInController.oos.writeObject("");
-        SignInController.oos.writeObject(new String[]{signature, encOption});
-
-        cUserNames = (String[]) SignInController.ois.readObject();
-        
-        
-
-        userNames = new String[cUserNames.length];
-        try {
-        	userNames = SignInController.asymmetricCrypto.DecryptStringArraySymmetric(userNames, SignInController.sessionKey);
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-        }
-        return userNames;
+    @FXML
+    protected void browsePictureButtonHandler(ActionEvent e) {
+    	if(!writeNewMessage.getText().isEmpty()) {
+	    	FileChooser fileChooser = new FileChooser();
+	    	configureFileChooser(fileChooser);
+	    	File file = new File("src/images");
+	    	if(file.exists()) {
+	    		fileChooser.setInitialDirectory(file);
+	    	}
+	    	file = fileChooser.showOpenDialog(SignInController.stage1);
+	    	
+	    	int messageLength = writeNewMessage.getText().getBytes().length;
+	    	System.out.println("MESSAGE SIZE : " + messageLength);
+	    	long[] imagesSize = getImagesSize();
+	    	for(int i = 0; i < imagesSize.length; i++) {
+		    	if(messageLength < imagesSize[i] / 10 ) {
+		    		//do logic for  adding message to picture
+		    	} else {
+		    		alert("Your message is too large for selected image");
+		    	}
+	    	}
+    	} else {
+    		alert("Write message first!");
+    	}
     }
+    
+    private long[] getImagesSize() {
+    	File f = new File("src/images");
+    	String[] fileNames = f.list();
+    	long[] imagesSize = new long[fileNames.length];
+    	int i = 0;
+    	
+    	for(String s : fileNames) {
+    		File file = new File("src/images/" + s);
+    		System.out.println("FILE NAME : " + file.getName());
+    		imagesSize[i] = file.length();
+    		System.out.println("IMAGE SIZE : " + imagesSize[i]);
+    		i++;
+    	}
+    	return imagesSize;
+    }
+	private static void configureFileChooser(final FileChooser fileChooser) {
+
+        fileChooser.setTitle("Select image");
+        fileChooser.setInitialDirectory(new File("../images"));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("JPG", "*.jpg"));
+    }
+
+
+    
+
 
     protected static void alert(String message) {
 

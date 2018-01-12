@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.shape.*?>
 <?import java.lang.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
@@ -10,9 +11,12 @@
 
 <Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="411.0" prefWidth="591.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controllers.UserPanelController">
    <children>
-      <ListView fx:id="list" layoutX="393.0" layoutY="9.0" prefHeight="161.0" prefWidth="184.0" />
-      <Button fx:id="saveButton" layoutX="145.0" layoutY="174.0" mnemonicParsing="false" text="Save" />
-      <TextArea fx:id="newFileContent" layoutX="12.0" layoutY="9.0" prefHeight="161.0" prefWidth="368.0" promptText="Enter new message" />
-      <Button fx:id="uploadNewButton" layoutX="14.0" layoutY="174.0" mnemonicParsing="false" onAction="#handleSendMessageButton" text="Send message" />
+      <ListView fx:id="list" layoutX="431.0" layoutY="9.0" prefHeight="161.0" prefWidth="146.0" />
+      <Button fx:id="showNewButton" layoutX="140.0" layoutY="174.0" mnemonicParsing="false" onAction="#handleShowNewMessagesButton" text="Show new messages" />
+      <TextArea fx:id="writeNewMessage" layoutX="12.0" layoutY="9.0" prefHeight="161.0" prefWidth="412.0" promptText="Enter new message" />
+      <Button fx:id="sendMessageButton" layoutX="14.0" layoutY="174.0" mnemonicParsing="false" onAction="#handleSendMessageButton" text="Send message" />
+      <Label fx:id="newMessagesLabel" layoutX="14.0" layoutY="232.0" text="You have  6 new messages" />
+      <TextArea fx:id="viewNewMessages" layoutX="13.0" layoutY="216.0" prefHeight="181.0" prefWidth="565.0" />
+      <Button fx:id="browsePictureButton" layoutX="304.0" layoutY="174.0" mnemonicParsing="false" onAction="#browsePictureButtonHandler" text="Browse picture" />
    </children>
 </Pane>

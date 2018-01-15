@@ -19,9 +19,11 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
@@ -41,6 +43,9 @@ import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
@@ -78,14 +83,11 @@ public class SignInController {
 
     public static Stage stage1 = new Stage();
     private Stage stage = new Stage();
-    private static final int PORT_NUMBER = 9999;
     protected static ObjectOutputStream oos;
     protected static ObjectInputStream ois;
-    private static Socket socket;
     protected static Crypto asymmetricCrypto;
     protected static SecretKey sessionKey;
     private static X509Certificate certificate;
-    private static String username;
     private PublicKey publicKey;
     protected static PrivateKey privateKey;
     protected static PublicKey serverPublicKey;
@@ -167,20 +169,24 @@ public class SignInController {
 //                        }
                       //  System.out.println("LOGIN : " + login);
                     } while (!login);
-                    
-                    FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("fxml/userPanel.fxml"));
-                    Parent root = (Parent) loader.load();
-
-                    UserPanelController controller = loader.getController();
-
-                    stage1.setTitle(" User panel");
-                    stage1.setScene(new Scene(root));
-                    stage1.show();
-
-                    stage.hide();
-//                    browseLabel.setVisible(true);
-//                    addCertLabel.setVisible(true);
-//                    browse.setVisible(true);
+                    if(checkCertificate("src/certificates/" + uName + ".crt")) {
+	                    FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("fxml/userPanel.fxml"));
+	                    Parent root = (Parent) loader.load();
+	
+	                    UserPanelController controller = loader.getController();
+	
+	                    stage1.setTitle(" User panel");
+	                    stage1.setScene(new Scene(root));
+	                    stage1.show();
+	
+	                    stage.hide();
+	//                    browseLabel.setVisible(true);
+	//                    addCertLabel.setVisible(true);
+	//                    browse.setVisible(true);
+                    } else {
+                    	alert("Certificate has expired!");
+                    	System.exit(0);
+                    }
 
                 } else {
                     alert("Username doesn't exist!");
@@ -198,7 +204,7 @@ public class SignInController {
 
     }
 
-    @FXML
+ //   @FXML
 //    protected void handleBrowseButton(ActionEvent event) {
 //        FileChooser fileChooser = new FileChooser();
 //        configureFileChooser(fileChooser);
@@ -393,5 +399,28 @@ public class SignInController {
     	byte[] concatanated = output.toByteArray();
 
     	return concatanated;
+    }
+    
+    /*
+     * Helper method that checks certificate existence, and crl list for user certificate
+     * 
+     */
+    private boolean checkCertificate(String pathToCertificate) {
+    	
+    	boolean isGood = false;
+    	
+        try {
+            CertificateFactory cFactory = CertificateFactory.getInstance("X.509");
+            FileInputStream fis = new FileInputStream(pathToCertificate);
+            certificate = (X509Certificate) cFactory.generateCertificate(fis);
+            publicKey = certificate.getPublicKey();
+
+			certificate.checkValidity();
+			isGood = true;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+    	return isGood;
     }
 }

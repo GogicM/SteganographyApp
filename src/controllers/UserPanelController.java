@@ -1,6 +1,7 @@
 package controllers;
 
 import java.awt.Desktop;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -19,6 +20,7 @@ import java.util.logging.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
+import javax.imageio.ImageIO;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -46,7 +48,7 @@ public class UserPanelController {
     private String fileName;
     private String userName;
     private String selectedUsername;
-    
+    private BufferedImage image = null;
     private final Desktop desktop = Desktop.getDesktop();
 
     private static final int PORT_NUMBER = 9999;
@@ -85,6 +87,7 @@ public class UserPanelController {
     			String uName = s.split("#")[0];
     			data.add(uName);
     		}
+    		bReader.close();
     	} catch(IOException e) {
     		e.printStackTrace();
     	}
@@ -101,6 +104,7 @@ public class UserPanelController {
 
             }
         });
+        
         SignInController.stage1.show();
 
     }
@@ -249,37 +253,94 @@ public class UserPanelController {
 	    		fileChooser.setInitialDirectory(file);
 	    	}
 	    	file = fileChooser.showOpenDialog(SignInController.stage1);
-	    	
+	    	try {
+	    		System.out.println(file.getName());
+				image = ImageIO.read(file);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 	    	int messageLength = writeNewMessage.getText().getBytes().length;
 	    	System.out.println("MESSAGE SIZE : " + messageLength);
-	    	long[] imagesSize = getImagesSize();
-	    	for(int i = 0; i < imagesSize.length; i++) {
-		    	if(messageLength < imagesSize[i] / 10 ) {
+	    	long imageSize = getImagesSize(file.getName());
+	    	//for(int i = 0; i < imagesSize.length; i++) {
+		    	if(messageLength < imageSize / 100 ) {
 		    		//do logic for  adding message to picture
+		    		storeEncryptedMessageInPicture();
+		    		
 		    	} else {
 		    		alert("Your message is too large for selected image");
 		    	}
-	    	}
+	    	//}
     	} else {
     		alert("Write message first!");
     	}
     }
     
-    private long[] getImagesSize() {
-    	File f = new File("src/images");
-    	String[] fileNames = f.list();
-    	long[] imagesSize = new long[fileNames.length];
+    private void storeEncryptedMessageInPicture() {
+		// TODO Auto-generated method stub
+		
+	}
+    
+    private byte[] encodeText(byte[] image, byte[] addition, int offset)
+    {
+    	if(addition.length + offset > image.length)
+    	{
+    		throw new IllegalArgumentException("File not long enough!");
+    	}
+    	for(int i=0; i<addition.length; ++i)
+     	{
+    		int add = addition[i];
+    		for(int bit=7; bit>=0; --bit, ++offset)
+    		{
+    	   	 	int b = (add >>> bit) & 1;
+    	   		 image[offset] = (byte)((image[offset] & 0xFE) | b );
+    		}
+    	}
+    	return image;
+    }
+    
+	private byte[] decodeText(byte[] image)
+	{
+		int length = 0;
+		int offset  = 32;
+		//loop through 32 bytes of data to determine text length
+		for(int i=0; i<32; ++i) //i=24 will also work, as only the 4th byte contains real data
+		{
+			length = (length << 1) | (image[i] & 1);
+		}
+		
+		byte[] result = new byte[length];
+		
+		//loop through each byte of text
+		for(int b=0; b<result.length; ++b )
+		{
+			//loop through each bit within a byte of text
+			for(int i=0; i<8; ++i, ++offset)
+			{
+				//assign bit: [(new byte value) << 1] OR [(text byte) AND 1]
+				result[b] = (byte)((result[b] << 1) | (image[offset] & 1));
+			}
+		}
+		return result;
+	}
+	
+	private long getImagesSize(String imageName) {
+    	File f = new File("src/images/" + imageName);
+    	//String[] fileNames = f.list();
+    	long imageSize;
     	int i = 0;
     	
-    	for(String s : fileNames) {
-    		File file = new File("src/images/" + s);
-    		System.out.println("FILE NAME : " + file.getName());
-    		imagesSize[i] = file.length();
-    		System.out.println("IMAGE SIZE : " + imagesSize[i]);
-    		i++;
-    	}
-    	return imagesSize;
+    	//for(String s : fileNames) {
+    	//	File file = new File("src/images/" + s);
+    		System.out.println("FILE NAME : " + f.getName());
+    		imageSize = f.length();
+    		System.out.println("IMAGE SIZE : " + imageSize);
+    		//i++;
+    	
+    	return imageSize;
     }
+
 	private static void configureFileChooser(final FileChooser fileChooser) {
 
         fileChooser.setTitle("Select image");

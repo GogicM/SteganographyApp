@@ -8,6 +8,9 @@ import java.io.File;
 
 import javax.imageio.ImageIO;
 
+import controllers.UserPanelController;
+import message.Message;
+
 public class Steganography {
 	
    public byte[] encodeText(byte[] image, byte[] addition, int offset) {
@@ -15,7 +18,7 @@ public class Steganography {
 	   if(addition.length + offset > image.length) {
 		   throw new IllegalArgumentException("File not long enough!");
 	   }
-	   for(int i=0; i<addition.length; ++i) {
+	   for(int i=0; i < addition.length; ++i) {
 		   int add = addition[i];
 		   for(int bit=7; bit>=0; --bit, ++offset) {
 			   int b = (add >>> bit) & 1;
@@ -30,10 +33,13 @@ public class Steganography {
 		int length = 0;
 		int offset  = 32;
 		//loop through 32 bytes of data to determine text length
+		System.out.println(image.toString());
 		for(int i=0; i<32; ++i) { //i=24 will also work, as only the 4th byte contains real data
 			length = (length << 1) | (image[i] & 1);
+			System.out.println("LENGTH : " + length);
+
 		}
-		
+		System.out.println("LENGTH : " + length);
 		byte[] result = new byte[length];
 		
 		//loop through each byte of text
@@ -64,7 +70,8 @@ public class Steganography {
     }
 	
 	public byte[] imageToByte(BufferedImage image) {
-	    	byte[] imageBytes;
+	    	
+		byte[] imageBytes;
 	    	
 	    	WritableRaster raster = image.getRaster();
 	    	DataBufferByte buffer = (DataBufferByte) raster.getDataBuffer();
@@ -74,7 +81,7 @@ public class Steganography {
 	    	
 	    }
 	
-	public boolean encode(String path, String original, String ext1, String stegan, String message) {
+	public boolean encode(String path, String original, String ext1, String stegan, Message message) {
 		
 			String file_name = createPathToImage(path,original,ext1);
 			System.out.println(file_name);
@@ -82,9 +89,9 @@ public class Steganography {
 			
 			//user space is not necessary for Encrypting
 			BufferedImage image = user_space(image_orig);
-			image = add_text(image,message);
+			image = add_text(image,message.getContent());
 			
-			return(setImage(image,new File(createPathToImage(path,stegan,"jpg")),"jpg"));
+			return(setImage(image,new File(createPathToImage(path,stegan,"png")),"png"));
 	}
 		
 	public String decode(String path, String name) {
@@ -92,7 +99,7 @@ public class Steganography {
 		byte[] decode;
 		try {
 			//user space is necessary for decrypting
-			BufferedImage image  = user_space(getImage(createPathToImage(path,name,"jpg")));
+			BufferedImage image  = user_space(getImage(createPathToImage(path,name,"png")));
 			decode = decodeText(imageToByte(image));
 			return(new String(decode));
 		} catch(Exception e) {
@@ -137,7 +144,7 @@ public class Steganography {
 		BufferedImage new_img  = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
 		Graphics2D	graphics = new_img.createGraphics();
 		graphics.drawRenderedImage(image, null);
-		graphics.dispose(); //release all allocated memory for this image
+		//graphics.dispose(); //release all allocated memory for this image
 		return new_img;
 	}
 		

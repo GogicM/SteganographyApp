@@ -8,18 +8,25 @@ import java.awt.image.WritableRaster;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -43,6 +50,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import message.Message;
 import server.ServerThread;
 import steganography.Steganography;
 
@@ -122,16 +130,21 @@ public class UserPanelController {
     	
     	int messageLength = writeNewMessage.getText().getBytes().length;
     	System.out.println("MESSAGE NAME : " + imgFile.getName());
-    	long imageSize = steganography.getImagesSize(imgFile.getName());
+    	long imageSize = getImagesSize(imgFile.getName());
     	//for(int i = 0; i < imagesSize.length; i++) {
 	    	if(messageLength < imageSize / 100 ) {
 	    		//do logic for  adding message to picture
 	    		//encodeText(imageToByte(image), );
-	    		if(steganography.encode("src/images", "girl", "jpg", "girl_steg", writeNewMessage.getText())) {
-	    			alert("You succesfuly encoded text!");
+	    		String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
+	    		String messageContent = "< " + timeStamp + "> < " + SignInController.uName + " > : <" + writeNewMessage.getText() + " > ";
+	    		Message message = new Message(messageContent, false);
+	    		
+	    		if(steganography.encode("src/images", imgFile.getName().split(Pattern.quote("."))[0], "png", imgFile.getName().split(Pattern.quote("."))[0] + "_steg", message)) {
+	    			alert("You succesfully encoded text!");
 	    		}
 	    	} else {
 	    		alert("Your message is too large for selected image");
+	    		System.out.println(writeNewMessage.getText().getBytes().length);
 	    	}
     }
     
@@ -139,7 +152,7 @@ public class UserPanelController {
     protected void handleShowNewMessagesButton(ActionEvent e) {
     	newMessagesLabel.setVisible(false);
     	viewNewMessages.setVisible(true);
-    	viewNewMessages.setText(steganography.decode("src/images", "girl_steg"));
+    	viewNewMessages.setText(steganography.decode("src/images", imgFile.getName().split(Pattern.quote("."))[0] + "_steg"));
     	
     }
     
@@ -154,7 +167,7 @@ public class UserPanelController {
 	    	}
 	    	imgFile = fileChooser.showOpenDialog(SignInController.stage1);
 //	    	try {
-	    		System.out.println(imgFile.getName());
+	    		System.out.println(imgFile.getName().split(Pattern.quote("."))[0]);
 //				image = ImageIO.read(file);
 //			} catch (IOException e1) {
 //				// TODO Auto-generated catch block
@@ -174,7 +187,7 @@ public class UserPanelController {
         fileChooser.setTitle("Select image");
         fileChooser.setInitialDirectory(new File("../images"));
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("JPG", "*.jpg"));
+                new FileChooser.ExtensionFilter("PNG", "*.png"));
     }
 
 
@@ -190,7 +203,60 @@ public class UserPanelController {
 
         alert.showAndWait();
     }
-    
- 
 
+    public long getImagesSize(String imageName) {
+     	File f = new File("src/images/" + imageName);
+     	//String[] fileNames = f.list();
+     	long imageSize;
+     	int i = 0;
+     	
+     	//for(String s : fileNames) {
+     	//	File file = new File("src/images/" + s);
+     		System.out.println("FILE NAME : " + f.getName());
+     		imageSize = f.length();
+     		System.out.println("IMAGE SIZE : " + imageSize);
+     		//i++;
+     	
+     	return imageSize;
+     }
+    
+    public void serializeMessages(String uName, Message m) {
+    	ArrayList<Message> messages = new ArrayList<>();
+    	messages.add(m);
+    	File f = new File("/src/" + uName);
+    	try {
+	    	if(!f.exists()) {
+	    		f.createNewFile();
+	    	}
+    	
+    		FileOutputStream fos = new FileOutputStream(f);
+    		ObjectOutputStream oos = new ObjectOutputStream(fos);
+    		oos.writeObject(messages);
+    		oos.close();
+    		fos.close();
+    	} catch(IOException e) {
+    		e.printStackTrace();
+    	} 
+    }
+    
+    public ArrayList deserializeMessages(String uName) {
+    	
+    	ArrayList<Message> messages = new ArrayList<> ();
+    	
+    	File f = new File("/src/" + uName);
+    	try {
+	    	if(!f.exists()) {
+	    		f.createNewFile();
+	    	}
+    	
+	    	FileInputStream  fis = new FileInputStream (f);
+    		ObjectInputStream ois = new ObjectInputStream(fis);
+    		messages = (ArrayList) ois.readObject();
+    		ois.close();
+    		fis.close();
+    	} catch(IOException | ClassNotFoundException e) {
+    		e.printStackTrace();
+    	}
+    	return messages;
+    }
 }

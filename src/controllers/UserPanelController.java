@@ -32,6 +32,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.imageio.ImageIO;
 
+import crypto.Crypto;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -63,8 +64,10 @@ public class UserPanelController {
     private BufferedImage image = null;
     private Steganography steganography;
     private File imgFile;
-    private final Desktop desktop = Desktop.getDesktop();
-
+    private ArrayList<Message> newMessages;
+    private Crypto crypto;
+    
+    
     private static final int PORT_NUMBER = 9999;
     private static String PATH = "src/server/users";
     
@@ -95,6 +98,8 @@ public class UserPanelController {
     	steganography = new Steganography();
     	viewNewMessages.setVisible(false);
     	try {
+    		newMessages = deserializeMessages(SignInController.uName);
+    		crypto = new Crypto();
     		File f = new File("src/controllers/users.txt");
     		BufferedReader bReader = new BufferedReader(new FileReader(f));
     		String s = null;
@@ -103,7 +108,7 @@ public class UserPanelController {
     			data.add(uName);
     		}
     		bReader.close();
-    	} catch(IOException e) {
+    	} catch(Exception e) {
     		e.printStackTrace();
     	}
         list.setItems(data);
@@ -137,9 +142,13 @@ public class UserPanelController {
 	    		//encodeText(imageToByte(image), );
 	    		String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
 	    		String messageContent = "< " + timeStamp + "> < " + SignInController.uName + " > : <" + writeNewMessage.getText() + " > ";
-	    		Message message = new Message(messageContent, false);
+	    		Message message = new Message(messageContent, false, selectedUsername);
 	    		
 	    		if(steganography.encode("src/images", imgFile.getName().split(Pattern.quote("."))[0], "png", imgFile.getName().split(Pattern.quote("."))[0] + "_steg", message)) {
+	    			message.setImageName(imgFile.getName().split(Pattern.quote("."))[0]);
+//	    			ArrayList<Message> newMessages = new ArrayList<>();
+//	    			newMessages.add(message);
+	    			serializeMessages(message.getTargetedUser(), message);
 	    			alert("You succesfully encoded text!");
 	    		}
 	    	} else {
@@ -150,9 +159,24 @@ public class UserPanelController {
     
     @FXML
     protected void handleShowNewMessagesButton(ActionEvent e) {
+    	
     	newMessagesLabel.setVisible(false);
     	viewNewMessages.setVisible(true);
-    	viewNewMessages.setText(steganography.decode("src/images", imgFile.getName().split(Pattern.quote("."))[0] + "_steg"));
+    	
+    	System.out.println(newMessages.get(0).getContent());
+    	String[] messages = new String[newMessages.size()];
+    	int i = 0;
+    	for(Message m : newMessages) {
+    		System.out.println(m.getImageName() + "_steg");
+    		if(!m.getIsRead()) {
+    			messages[i] = steganography.decode("src/images", m.getImageName() + "_steg");
+    			viewNewMessages.setText(messages[i] + "\n");
+    			m.setIsRead(true);
+    			serializeMessages(m.getTargetedUser(), m);
+    		}
+        	i++;
+    	}
+    	//viewNewMessages.setText(steganography.decode("src/images", imgFile.getName().split(Pattern.quote("."))[0] + "_steg"));
     	
     }
     
@@ -223,7 +247,7 @@ public class UserPanelController {
     public void serializeMessages(String uName, Message m) {
     	ArrayList<Message> messages = new ArrayList<>();
     	messages.add(m);
-    	File f = new File("/src/" + uName);
+    	File f = new File("src/" + uName);
     	try {
 	    	if(!f.exists()) {
 	    		f.createNewFile();
@@ -243,7 +267,7 @@ public class UserPanelController {
     	
     	ArrayList<Message> messages = new ArrayList<> ();
     	
-    	File f = new File("/src/" + uName);
+    	File f = new File("src/" + uName);
     	try {
 	    	if(!f.exists()) {
 	    		f.createNewFile();

@@ -66,7 +66,7 @@ public class UserPanelController {
     private File imgFile;
     private ArrayList<Message> newMessages;
     private Crypto crypto;
-    
+    private Message message = new Message();
     
     private static final int PORT_NUMBER = 9999;
     private static String PATH = "src/server/users";
@@ -98,7 +98,14 @@ public class UserPanelController {
     	steganography = new Steganography();
     	viewNewMessages.setVisible(false);
     	try {
-    		newMessages = deserializeMessages(SignInController.uName);
+    		newMessages = (deserializeMessages(SignInController.uName).size() > 0) ? deserializeMessages(SignInController.uName) : new ArrayList<> ();
+    		int newMessageNumber = 0;
+    		for(Message m : newMessages) {
+    			if(!m.getIsRead()) {
+    				newMessageNumber++;
+    			}
+    		}
+    		newMessagesLabel.setText("You have " + newMessageNumber + " message(s)");
     		crypto = new Crypto();
     		File f = new File("src/controllers/users.txt");
     		BufferedReader bReader = new BufferedReader(new FileReader(f));
@@ -126,7 +133,6 @@ public class UserPanelController {
         });
         
         SignInController.stage1.show();
-
     }
 
     
@@ -142,9 +148,12 @@ public class UserPanelController {
 	    		//encodeText(imageToByte(image), );
 	    		String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
 	    		String messageContent = "< " + timeStamp + "> < " + SignInController.uName + " > : <" + writeNewMessage.getText() + " > ";
-	    		Message message = new Message(messageContent, false, selectedUsername);
 	    		
+	    		message.setContent(writeNewMessage.getText());
+	    		message.setIsRead(false);
+	    		message.setTargetedUser(selectedUsername);
 	    		if(steganography.encode("src/images", imgFile.getName().split(Pattern.quote("."))[0], "png", imgFile.getName().split(Pattern.quote("."))[0] + "_steg", message)) {
+	    			//message = new Message(messageContent, false, selectedUsername);
 	    			message.setImageName(imgFile.getName().split(Pattern.quote("."))[0]);
 //	    			ArrayList<Message> newMessages = new ArrayList<>();
 //	    			newMessages.add(message);
@@ -256,6 +265,7 @@ public class UserPanelController {
     		FileOutputStream fos = new FileOutputStream(f);
     		ObjectOutputStream oos = new ObjectOutputStream(fos);
     		oos.writeObject(messages);
+    		oos.flush();
     		oos.close();
     		fos.close();
     	} catch(IOException e) {

@@ -9,6 +9,7 @@ public class Message implements Serializable {
 	private String targetedUser;
 	private boolean isRead;
 	
+	public Message() {}
 	public Message(String content, boolean isRead, String targetedUser) {
 		this.content = content;
 		this.isRead = isRead;

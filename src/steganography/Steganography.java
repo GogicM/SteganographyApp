@@ -89,7 +89,7 @@ public class Steganography {
 			
 			//user space is not necessary for Encrypting
 			BufferedImage image = user_space(image_orig);
-			image = add_text(image,message.getContent());
+			image = add_text(image, message.getContent());
 			
 			return(setImage(image,new File(createPathToImage(path,stegan,"png")),"png"));
 	}

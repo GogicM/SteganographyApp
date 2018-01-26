@@ -318,4 +318,19 @@ public class Crypto {
         byte[] sigBytes = Base64.getDecoder().decode(signature);
         return sig.verify(sigBytes);
     }
+    
+    public PublicKey getPublicKeyFromCert(String userName) {
+    	
+    	X509Certificate userCert = null;
+		try {
+			userCert = getCertificate("src/certificates" + userName + ".crt");
+		} catch (CertificateException e) {
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		};
+    	//getCertificate("src/certificates" + userName + ".crt");
+    	PublicKey publicKey = userCert.getPublicKey();
+    	return publicKey;
+    }
 }

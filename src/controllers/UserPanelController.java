@@ -61,18 +61,15 @@ public class UserPanelController {
     private String fileName;
     private String userName;
     private String selectedUsername;
-    private BufferedImage image = null;
     private Steganography steganography;
     private File imgFile;
     private ArrayList<Message> newMessages;
     private Crypto crypto;
     private Message message = new Message();
-    
-    private static final int PORT_NUMBER = 9999;
-    private static String PATH = "src/server/users";
+    ArrayList<Message> messages = new ArrayList<>();
     
     protected static String newFileData;
-
+    String messageContent;
     protected static ObservableList<String> data = FXCollections.observableArrayList();
 
     @FXML
@@ -95,6 +92,7 @@ public class UserPanelController {
     @FXML
     private void initialize() {
     	
+    	messageContent = new String("");
     	steganography = new Steganography();
     	viewNewMessages.setVisible(false);
     	try {
@@ -127,7 +125,7 @@ public class UserPanelController {
                     String old_val, String new_val) {
             	
             	selectedUsername =  new_val;
-                System.out.println(selectedUsername);
+                //System.out.println(selectedUsername);
 
             }
         });
@@ -138,7 +136,7 @@ public class UserPanelController {
     
     @FXML
     protected void handleSendMessageButton(ActionEvent e) {
-    	
+    	try {
     	int messageLength = writeNewMessage.getText().getBytes().length;
     	System.out.println("MESSAGE NAME : " + imgFile.getName());
     	long imageSize = getImagesSize(imgFile.getName());
@@ -148,11 +146,11 @@ public class UserPanelController {
 	    		//encodeText(imageToByte(image), );
 	    		String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
 	    		String messageContent = "< " + timeStamp + "> < " + SignInController.uName + " > : <" + writeNewMessage.getText() + " > ";
-	    		
-	    		message.setContent(writeNewMessage.getText());
+	    		Message message = new Message();
+	    		message.setContent(messageContent);
 	    		message.setIsRead(false);
 	    		message.setTargetedUser(selectedUsername);
-	    		if(steganography.encode("src/images", imgFile.getName().split(Pattern.quote("."))[0], "png", imgFile.getName().split(Pattern.quote("."))[0] + "_steg", message)) {
+	    		if(steganography.encode("src/images", imgFile.getName().split(Pattern.quote("."))[0], "png", imgFile.getName().split(Pattern.quote("."))[0], message, crypto.getPublicKey("src/keys/" + selectedUsername + "Public.der"))) {
 	    			//message = new Message(messageContent, false, selectedUsername);
 	    			message.setImageName(imgFile.getName().split(Pattern.quote("."))[0]);
 //	    			ArrayList<Message> newMessages = new ArrayList<>();
@@ -162,8 +160,11 @@ public class UserPanelController {
 	    		}
 	    	} else {
 	    		alert("Your message is too large for selected image");
-	    		System.out.println(writeNewMessage.getText().getBytes().length);
+	    		//System.out.println(writeNewMessage.getText().getBytes().length);
 	    	}
+    	} catch(Exception ex) {
+    		ex.printStackTrace();
+    	}
     }
     
     @FXML
@@ -172,18 +173,30 @@ public class UserPanelController {
     	newMessagesLabel.setVisible(false);
     	viewNewMessages.setVisible(true);
     	
-    	System.out.println(newMessages.get(0).getContent());
-    	String[] messages = new String[newMessages.size()];
+    	//System.out.println(newMessages.get(0).getContent());
+    	
     	int i = 0;
+    	System.out.println("SIZE OF NEW : " + newMessages.size());
     	for(Message m : newMessages) {
     		System.out.println(m.getImageName() + "_steg");
     		if(!m.getIsRead()) {
-    			messages[i] = steganography.decode("src/images", m.getImageName() + "_steg");
-    			viewNewMessages.setText(messages[i] + "\n");
+    			try {
+					messageContent  += steganography.decode("src/images", m.getImageName(), crypto.getPrivateKey("src/keys/" + SignInController.uName + "DER.key"))
+							+ System.lineSeparator();
+				} catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e1) {
+					e1.printStackTrace();
+				}
+    			System.out.println(messageContent);
     			m.setIsRead(true);
     			serializeMessages(m.getTargetedUser(), m);
+    			
+    			i++;
+    			//serializeMessages(m.getTargetedUser(), m);
     		}
-        	i++;
+    		viewNewMessages.setText(messageContent);
+    		File f = new File("src/images/" + m.getImageName() + ".png");
+			f.delete();
+    		//messages = "";
     	}
     	//viewNewMessages.setText(steganography.decode("src/images", imgFile.getName().split(Pattern.quote("."))[0] + "_steg"));
     	
@@ -200,7 +213,7 @@ public class UserPanelController {
 	    	}
 	    	imgFile = fileChooser.showOpenDialog(SignInController.stage1);
 //	    	try {
-	    		System.out.println(imgFile.getName().split(Pattern.quote("."))[0]);
+	    		//System.out.println(imgFile.getName().split(Pattern.quote("."))[0]);
 //				image = ImageIO.read(file);
 //			} catch (IOException e1) {
 //				// TODO Auto-generated catch block
@@ -245,16 +258,16 @@ public class UserPanelController {
      	
      	//for(String s : fileNames) {
      	//	File file = new File("src/images/" + s);
-     		System.out.println("FILE NAME : " + f.getName());
+     		//System.out.println("FILE NAME : " + f.getName());
      		imageSize = f.length();
-     		System.out.println("IMAGE SIZE : " + imageSize);
+     		//System.out.println("IMAGE SIZE : " + imageSize);
      		//i++;
      	
      	return imageSize;
      }
     
     public void serializeMessages(String uName, Message m) {
-    	ArrayList<Message> messages = new ArrayList<>();
+    	
     	messages.add(m);
     	File f = new File("src/" + uName);
     	try {

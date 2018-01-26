@@ -5,10 +5,18 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.awt.image.WritableRaster;
 import java.io.File;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.imageio.ImageIO;
 
 import controllers.UserPanelController;
+import crypto.Crypto;
 import message.Message;
 
 public class Steganography {
@@ -81,27 +89,45 @@ public class Steganography {
 	    	
 	    }
 	
-	public boolean encode(String path, String original, String ext1, String stegan, Message message) {
-		
+	public boolean encode(String path, String original, String ext1, String stegan, Message message, PublicKey publicKey) {
+			
+			Crypto crypto = null;
+			try {
+				crypto = new Crypto();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			} 
 			String file_name = createPathToImage(path,original,ext1);
 			System.out.println(file_name);
 			BufferedImage image_orig = getImage(file_name);
-			
+			image_orig = user_space(image_orig);
 			//user space is not necessary for Encrypting
-			BufferedImage image = user_space(image_orig);
-			image = add_text(image, message.getContent());
+			//BufferedImage image = user_space(image_orig);
+			String encryptedMessage = null;
+			try {
+				encryptedMessage = crypto.EncryptStringAsymmetric(message.getContent(), publicKey);
+				System.out.println(encryptedMessage);
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			image_orig = add_text(image_orig, encryptedMessage);
 			
-			return(setImage(image,new File(createPathToImage(path,stegan,"png")),"png"));
+			return(setImage(image_orig,new File(createPathToImage(path, original,"png")),"png"));
 	}
 		
-	public String decode(String path, String name) {
+	public String decode(String path, String name, PrivateKey privateKey) {
 			
 		byte[] decode;
 		try {
+			Crypto crypto = new Crypto();
 			//user space is necessary for decrypting
 			BufferedImage image  = user_space(getImage(createPathToImage(path,name,"png")));
 			decode = decodeText(imageToByte(image));
-			return(new String(decode));
+			String encText = new String(decode);
+			String msg = crypto.DecryptStringAsymmetric(encText, privateKey);
+
+			return(msg);
 		} catch(Exception e) {
 				e.printStackTrace();
 				return "";

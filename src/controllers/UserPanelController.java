@@ -7,21 +7,34 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.WritableRaster;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.net.Socket;
+import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509CRL;
+import java.security.cert.X509CRLEntry;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -30,6 +43,9 @@ import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import javax.imageio.ImageIO;
 
 import crypto.Crypto;
@@ -66,10 +82,13 @@ public class UserPanelController {
     private ArrayList<Message> newMessages;
     private Crypto crypto;
     private Message message = new Message();
-    ArrayList<Message> messages = new ArrayList<>();
+    private KeyGenerator keyGenerator;
+    private SecretKey sessionKey;
+    private String messageContent;
+
+    private ArrayList<Message> messages = new ArrayList<>();
     
     protected static String newFileData;
-    String messageContent;
     protected static ObservableList<String> data = FXCollections.observableArrayList();
 
     @FXML
@@ -95,16 +114,45 @@ public class UserPanelController {
     	messageContent = new String("");
     	steganography = new Steganography();
     	viewNewMessages.setVisible(false);
+    	String[] uNames = new String[] { "user", "student"};
+//    	for(String s : uNames) {
+//    		if(s.equals(SignInController.uName)) {
+//    			continue;
+//    		}
+    		data.add("user");
+    		data.add("student");
+
+   // 	}
+
+
     	try {
-    		newMessages = (deserializeMessages(SignInController.uName).size() > 0) ? deserializeMessages(SignInController.uName) : new ArrayList<> ();
-    		int newMessageNumber = 0;
-    		for(Message m : newMessages) {
-    			if(!m.getIsRead()) {
-    				newMessageNumber++;
-    			}
-    		}
-    		newMessagesLabel.setText("You have " + newMessageNumber + " message(s)");
+            list.getSelectionModel().selectedItemProperty().addListener(
+                    new ChangeListener<String>() {
+                public void changed(ObservableValue<? extends String> ov,
+                        String old_val, String new_val) {
+                	
+                	selectedUsername =  new_val;
+                    System.out.println(selectedUsername);
+
+                }
+            });
+            list.setItems(data);
+            userName = SignInController.uName;
     		crypto = new Crypto();
+    		int newMessageNumber = 0;
+    		File f1 = new File("src/" + SignInController.uName);
+    		if(!f1.exists() || f1.length() == 0) {
+    			newMessages = new ArrayList<>();
+    		} else {
+    			newMessages = deserializeMessages(SignInController.uName);
+    			for(Message m : newMessages) {
+        			if(!m.getIsRead()) {
+        				newMessageNumber++;
+        			}
+        		}
+    		}
+    	
+    		newMessagesLabel.setText("You have " + newMessageNumber + " message(s)");
     		File f = new File("src/controllers/users.txt");
     		BufferedReader bReader = new BufferedReader(new FileReader(f));
     		String s = null;
@@ -116,19 +164,6 @@ public class UserPanelController {
     	} catch(Exception e) {
     		e.printStackTrace();
     	}
-        list.setItems(data);
-        userName = SignInController.uName;
-
-        list.getSelectionModel().selectedItemProperty().addListener(
-                new ChangeListener<String>() {
-            public void changed(ObservableValue<? extends String> ov,
-                    String old_val, String new_val) {
-            	
-            	selectedUsername =  new_val;
-                //System.out.println(selectedUsername);
-
-            }
-        });
         
         SignInController.stage1.show();
     }
@@ -136,14 +171,16 @@ public class UserPanelController {
     
     @FXML
     protected void handleSendMessageButton(ActionEvent e) {
+    	
+    	if(!checkCertificate("src/certificates/" + SignInController.uName + ".crt")) {
+    		alert("Bad certificate! Exiting app");
+    		System.exit(0);
+    	}
     	try {
     	int messageLength = writeNewMessage.getText().getBytes().length;
     	System.out.println("MESSAGE NAME : " + imgFile.getName());
     	long imageSize = getImagesSize(imgFile.getName());
-    	//for(int i = 0; i < imagesSize.length; i++) {
 	    	if(messageLength < imageSize / 100 ) {
-	    		//do logic for  adding message to picture
-	    		//encodeText(imageToByte(image), );
 	    		String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
 	    		String messageContent = "< " + timeStamp + "> < " + SignInController.uName + " > : <" + writeNewMessage.getText() + " > ";
 	    		Message message = new Message();
@@ -151,10 +188,7 @@ public class UserPanelController {
 	    		message.setIsRead(false);
 	    		message.setTargetedUser(selectedUsername);
 	    		if(steganography.encode("src/images", imgFile.getName().split(Pattern.quote("."))[0], "png", imgFile.getName().split(Pattern.quote("."))[0], message, crypto.getPublicKey("src/keys/" + selectedUsername + "Public.der"))) {
-	    			//message = new Message(messageContent, false, selectedUsername);
 	    			message.setImageName(imgFile.getName().split(Pattern.quote("."))[0]);
-//	    			ArrayList<Message> newMessages = new ArrayList<>();
-//	    			newMessages.add(message);
 	    			serializeMessages(message.getTargetedUser(), message);
 	    			alert("You succesfully encoded text!");
 	    		}
@@ -176,20 +210,23 @@ public class UserPanelController {
     	//System.out.println(newMessages.get(0).getContent());
     	
     	int i = 0;
-    	System.out.println("SIZE OF NEW : " + newMessages.size());
     	for(Message m : newMessages) {
     		System.out.println(m.getImageName() + "_steg");
     		if(!m.getIsRead()) {
     			try {
+    				if(!new File("src/images/" + m.getImageName() + ".png").exists()) {
+    					alert("Someone deleted image externaly!");
+    				}
 					messageContent  += steganography.decode("src/images", m.getImageName(), crypto.getPrivateKey("src/keys/" + SignInController.uName + "DER.key"))
 							+ System.lineSeparator();
-				} catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e1) {
+				
+					System.out.println(messageContent);
+					m.setIsRead(true);
+    		
+					cleanMessages(m.getTargetedUser());
+    			} catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e1) {
 					e1.printStackTrace();
 				}
-    			System.out.println(messageContent);
-    			m.setIsRead(true);
-    			serializeMessages(m.getTargetedUser(), m);
-    			
     			i++;
     			//serializeMessages(m.getTargetedUser(), m);
     		}
@@ -251,59 +288,168 @@ public class UserPanelController {
     }
 
     public long getImagesSize(String imageName) {
+    	
      	File f = new File("src/images/" + imageName);
-     	//String[] fileNames = f.list();
      	long imageSize;
      	int i = 0;
      	
-     	//for(String s : fileNames) {
-     	//	File file = new File("src/images/" + s);
-     		//System.out.println("FILE NAME : " + f.getName());
-     		imageSize = f.length();
-     		//System.out.println("IMAGE SIZE : " + imageSize);
-     		//i++;
-     	
+     	imageSize = f.length();
+
      	return imageSize;
      }
     
-    public void serializeMessages(String uName, Message m) {
+    public void serializeMessages(String uName, Message m) throws NoSuchAlgorithmException {
     	
-    	messages.add(m);
-    	File f = new File("src/" + uName);
-    	try {
+        keyGenerator = KeyGenerator.getInstance("AES");
+        keyGenerator.init(128);
+        sessionKey = keyGenerator.generateKey();
+        PublicKey pKey;
+        String encSessionKey = null;
+        String sessionKeyToString = null;
+		try {
+			System.out.println("Session key : " + Base64.getEncoder().encodeToString(sessionKey.getEncoded()));
+			sessionKeyToString = Base64.getEncoder().encodeToString(sessionKey.getEncoded());
+			pKey = crypto.getPublicKey("src/keys/" + uName + "Public.der");
+	        encSessionKey = crypto.EncryptStringAsymmetric(sessionKey.toString(), pKey);
+	        if(uName == null) {
+	        	uName = SignInController.uName;
+	        }
+		
+	        System.out.println(sessionKeyToString.length());
+	        messages.add(m);
+	        File f = new File("src/" + uName);
+    
 	    	if(!f.exists()) {
 	    		f.createNewFile();
 	    	}
-    	
-    		FileOutputStream fos = new FileOutputStream(f);
-    		ObjectOutputStream oos = new ObjectOutputStream(fos);
-    		oos.writeObject(messages);
+	        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	        ObjectOutputStream oos = new ObjectOutputStream(bos);
+	        oos.writeObject(messages);
+	        byte[] listBytes = bos.toByteArray();
+
+	    	crypto.writeToFile(f, listBytes,sessionKey, false);
+	    	writeKeyToFile(new File("src/" + uName + "Key"), sessionKey);
+	    	//messages.toArray().toString().getBytes();
+	    	System.out.println("SIZE OF KEY : " + encSessionKey.length());
+//
+//    		FileOutputStream fos = new FileOutputStream(f);
+//    		ObjectOutputStream oos = new ObjectOutputStream(fos);
+//    		oos.writeObject(encSessionKey + messages);
     		oos.flush();
     		oos.close();
-    		fos.close();
-    	} catch(IOException e) {
+    //		fos.close();
+    	} catch(Exception e) {
     		e.printStackTrace();
     	} 
     }
+    public void cleanMessages(String uName) {
+    	
+ 		try {
+	        if(uName == null) {
+	        	uName = SignInController.uName;
+	        }
+		
+	        File f = new File("src/" + uName);
     
+	    	
+	    	if(f.exists()) {
+	    		boolean b = f.createNewFile();
+	    		System.out.println(b);
+	    	} 
+	    
+
+	        PrintWriter printWriter = new PrintWriter (f);
+	        printWriter.print("");
+	        printWriter.close ();           
+	        printWriter.close();
+    		//fos.close();
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    	} 
+    }
+
     public ArrayList deserializeMessages(String uName) {
     	
-    	ArrayList<Message> messages = new ArrayList<> ();
-    	
+    	ArrayList<Message> messages = null;
+    	System.out.println("USER NAME : " + uName);
     	File f = new File("src/" + uName);
     	try {
+    		
 	    	if(!f.exists()) {
 	    		f.createNewFile();
 	    	}
-    	
-	    	FileInputStream  fis = new FileInputStream (f);
-    		ObjectInputStream ois = new ObjectInputStream(fis);
-    		messages = (ArrayList) ois.readObject();
-    		ois.close();
-    		fis.close();
-    	} catch(IOException | ClassNotFoundException e) {
+	    	File keyFile = new File("src/keys/" + uName +"DER.key");
+	    	PrivateKey privKey = crypto.getPrivateKey(keyFile.getAbsolutePath());
+	    	SecretKey sessionKey = readKeyFromFile(new File("src/" + uName + "Key"), privKey);
+	    	byte[] messagesByte = crypto.readFromFile(f, sessionKey);
+	    	ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(messagesByte));
+	    	messages = (ArrayList<Message>) ois.readObject();
+//	    	FileInputStream  fis = new FileInputStream (f);
+//    	    ObjectInputStream ois = new ObjectInputStream(fis);
+//
+//    		byte[] messagesByte = ois.readByte();
+//    		
+//    		ByteArrayInputStream bis = new ByteArrayInputStream(messageByte);
+//
+//    		messages = (ArrayList) ois.readObject();
+//    		ois.close();
+//    		fis.close();
+    	} catch(Exception e) {
     		e.printStackTrace();
     	}
     	return messages;
+    }
+    
+    private void writeKeyToFile(File file, SecretKey key) throws IOException,
+    BadPaddingException, InvalidKeyException,
+    IllegalBlockSizeException {
+    	
+    	PublicKey pKey = crypto.getPublicKeyFromCert(selectedUsername);
+    	byte[] encSessionKey = crypto.AsymmetricFileEncription(key.getEncoded(), pKey);
+    	FileOutputStream fos = new FileOutputStream(file);
+    	fos.write(encSessionKey);
+    	fos.flush();
+    	fos.close();
+    }
+    
+    private SecretKey readKeyFromFile(File keyFile, PrivateKey privateKey)
+            throws FileNotFoundException, IOException, GeneralSecurityException {
+
+        byte[] encSessionKey = new byte[(int) keyFile.length()];
+        FileInputStream fis = new FileInputStream(keyFile);
+        fis.read(encSessionKey);
+        fis.close();
+        byte[] sessionKey = crypto.AsymmetricFileDecription(encSessionKey, privateKey);
+        SecretKey secretKey = new SecretKeySpec(sessionKey, 0, sessionKey.length, "AES");
+
+        return secretKey;
+    }
+    
+  private boolean checkCertificate(String pathToCertificate) {
+    	
+    	boolean isGood = false;
+        X509Certificate certificate;
+
+        try {
+            X509CRLEntry revokedCertificate = null;
+            X509CRL crl = null;
+
+            CertificateFactory cFactory = CertificateFactory.getInstance("X.509");
+            FileInputStream fis = new FileInputStream(pathToCertificate);
+            certificate = (X509Certificate) cFactory.generateCertificate(fis);
+            crl = (X509CRL) cFactory.generateCRL(new DataInputStream(new FileInputStream("src/server/crl.pem")));
+            revokedCertificate = crl.getRevokedCertificate(certificate.getSerialNumber());
+            if(revokedCertificate !=null){
+                alert("Certificate invalid! Exiting application");
+                System.exit(0);
+            }
+
+			certificate.checkValidity();
+			isGood = true;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+    	return isGood;
     }
 }

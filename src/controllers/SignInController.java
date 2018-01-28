@@ -18,6 +18,7 @@ import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -46,6 +48,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.X509CRL;
+import java.security.cert.X509CRLEntry;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
@@ -70,6 +74,8 @@ import server.ServerThread;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.x500.X500Principal;
@@ -89,6 +95,7 @@ public class SignInController {
     protected static SecretKey sessionKey;
     private static X509Certificate certificate;
     private PublicKey publicKey;
+    private Crypto crypto;
     protected static PrivateKey privateKey;
     protected static PublicKey serverPublicKey;
     private final Desktop desktop = Desktop.getDesktop();
@@ -111,25 +118,21 @@ public class SignInController {
 
     @FXML
     private void initialize() {
-
-//        send.setVisible(false);
-//        browseLabel.setVisible(false);
-//        addCertLabel.setVisible(false);
-//        browse.setVisible(false);
-
-//        InetAddress iAddress;
-//
-//        try {
-//            iAddress = InetAddress.getByName("127.0.0.1");
-//
-//            socket = new Socket(iAddress, PORT_NUMBER);
-//            oos = new ObjectOutputStream(socket.getOutputStream());
-//            ois = new ObjectInputStream(socket.getInputStream());
-//
-//        } catch (Exception e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
+    	
+        try {
+			crypto = new Crypto();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} 
+//		try {
+//			keyGenerator = KeyGenerator.getInstance("AES");
+//		} catch (NoSuchAlgorithmException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+		if(!new File("src/users").exists()) {
+			encryptUserCredentialsFile();
+		}
     }
 
     @FXML
@@ -138,36 +141,15 @@ public class SignInController {
         if (!uNameTextField.getText().isEmpty() && !pTextField.getText().isEmpty()) {
             uName = uNameTextField.getText();
             password = pTextField.getText();
-            // String option = "login";
 
             try {
-//
-//                asymmetricCrypto = new Crypto();
                 if (new File("src\\keys\\" + uName + "Public.der").exists()) {
-//                    publicKey = asymmetricCrypto.getPublicKey("src\\keys\\" + uName + "Public.der");
-//                    privateKey = asymmetricCrypto.getPrivateKey("src\\keys\\" + uName + "DER.key");
-//                    //Exchange of keys for asymmetric crypto
-//                    //send public key to server
-//                    //oos.writeObject(publicKey);
-//                    
-//                    byte[] keyFromServer = (byte[]) ois.readObject();
-//                    int length = asymmetricCrypto.AsymmetricFileDecription(keyFromServer, privateKey).length;
-//                    //sessionKey for symmetric encryption
-//                    sessionKey = new SecretKeySpec(asymmetricCrypto.AsymmetricFileDecription(keyFromServer, privateKey),
-//                            0, length, "AES");
-//                    //login went well, now client sends certificate				                 
-//                    serverPublicKey = (PublicKey) ois.readObject();
                     boolean login;
                     boolean flag = true;
                     System.out.println( "USER NAME  : " + uName + " PASSWORD : " + password);
                     String sha256HexPassword = cipher(password);
                     do {
                         login = loginCheck(uName, sha256HexPassword);
-//                        if (!login && flag) {
-//                            alert("Wrong user name or password!");
-//                            flag = false;
-//                        }
-                      //  System.out.println("LOGIN : " + login);
                     } while (!login);
                     if(checkCertificate("src/certificates/" + uName + ".crt")) {
 	                    FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("fxml/userPanel.fxml"));
@@ -180,9 +162,6 @@ public class SignInController {
 	                    stage1.show();
 	
 	                    stage.hide();
-	//                    browseLabel.setVisible(true);
-	//                    addCertLabel.setVisible(true);
-	//                    browse.setVisible(true);
                     } else {
                     	alert("Certificate has expired!");
                     	System.exit(0);
@@ -204,137 +183,81 @@ public class SignInController {
 
     }
 
- //   @FXML
-//    protected void handleBrowseButton(ActionEvent event) {
-//        FileChooser fileChooser = new FileChooser();
-//        configureFileChooser(fileChooser);
-//        File file = new File("src/certificates");
-//        if (file.exists()) {
-//            //bug in FileChooser, one must set initial directory or it will throw exception
-//            fileChooser.setInitialDirectory(file);
-//        }
-//        file = fileChooser.showOpenDialog(getStage());
-//        if(!uName.equals(file.getName().split("\\.")[0])) {
-//        	alert("Certificate not compatibile to this user.");
-//        	send.setVisible(false);
-//        }
-//        setText(file.getName());
-//        if (browseLabel.getText() != null && uName.equals(file.getName().split("\\.")[0])) {
-//            send.setVisible(true);
-//        }
-//
-//    }
-//
-//    @FXML
-//    protected void handleSendButton(ActionEvent event) {
-//        try {
-//
-//            if (sendCertificate(uName)) {
-//
-//                FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("fxml/userPanel.fxml"));
-//                Parent root = (Parent) loader.load();
-//
-//                UserPanelController controller = loader.getController();
-//
-//                stage1.setTitle(" User panel");
-//                stage1.setScene(new Scene(root));
-//                stage1.show();
-//
-//                stage.hide();
-//            }
-//        } catch (Exception ex) {
-//            Logger.getLogger(SignInController.class.getName()).log(Level.SEVERE, null, ex);
-//        } 
-//    }
-
-//    private static void configureFileChooser(final FileChooser fileChooser) {
-//
-//        fileChooser.setTitle("Select your certificate");
-//        fileChooser.setInitialDirectory(new File("../certificates"));
-//        fileChooser.getExtensionFilters().add(
-//                new FileChooser.ExtensionFilter("CRT", "*.crt"));
-//    }
-//
-//    private void openFile(File file) {
-//        try {
-//            desktop.open(file);
-//        } catch (IOException e) {
-//            Logger.getLogger(SignInController.class.getName()).log(Level.SEVERE, null, e);
-//        }
-//    }
-//
-    public void setStage(Stage stage) {
+     public void setStage(Stage stage) {
         this.stage = stage;
     }
-//
-//    public Stage getStage() {
-//        return stage;
-//    }
-//
-//    public void setText(String text) {
-//        browseLabel.setText(text);
-//    }
 
-    private boolean loginCheck(String userName, String password) throws IOException,
-            InvalidKeyException, IllegalBlockSizeException,
-            BadPaddingException, NoSuchAlgorithmException, ClassNotFoundException, 
-            InvalidKeySpecException, SignatureException {
+    private boolean loginCheck(String userName, String password)  {
 
     	boolean login = false;
         String line = null;
         
         try {
-            File f = new File("src/controllers/users.txt");
-            BufferedReader br = new BufferedReader(new FileReader(f));
-            while ((line = br.readLine()) != null) {
-                String uName = line.split("#")[0];
-                String pass = line.split("#")[1];
+            File f = new File("src/users");
+            if(!f.exists()) {
+            	f.createNewFile();
+            }
+            FileInputStream fis = new FileInputStream(f);
+            byte[] usersData = new byte[(int) f.length()];
+            byte[] signature = new byte[684];
+            byte[] key = new byte[512];
+            byte[] data = new byte[224];
+            
+            fis.read(usersData);
+            System.out.println(usersData[684]);
+            for(int i = 0; i < 684; i ++) {
+            	signature[i] = usersData[i];
 
-                if (userName.equals(uName) && password.equals(pass)) {
+            }
+            for(int i = 684; i < 1196; i++) {
+            	key[i - 684] = usersData[i];
+            }
+            for(int i = 1196; i < 1420; i++) {
+            	data[i - 1196] = usersData[i];
+            }
+            byte[] decData = null;
+            boolean sign = crypto.verifyDigitalSignature(new String(data), new String(signature), crypto.getPublicKey("src/ca/publicCA.key"));
+            System.out.println(sign);
+            //if(sign) {
+            System.out.println("USLO");
+            byte[] decKey = crypto.AsymmetricFileDecription(key, crypto.getPrivateKey("src/ca/privateCA.key"));
+            SecretKey sKey = new SecretKeySpec(decKey, 0, decKey.length, "AES" );
+            decData = crypto.SymmetricFileDecription(data, sKey);
+            File f1 = new File("src/test.txt");
+            f1.createNewFile();
+            String msg = new String(decData);
+            // }
+            int i = 0;
+            BufferedReader br = new BufferedReader(new FileReader(f));
+            while (i < 3) {
+            	String[] dataFromFile = msg.split(";");
+            	System.out.println(dataFromFile[i]);
+                String[] uNameAndPass = dataFromFile[i].split("#");
+                String uName = uNameAndPass[0];
+                String pass = uNameAndPass[1];
+               
+//            	System.out.println(userName + "#" + password);
+//            	System.out.println(uName + "#" + pass);
+//            	System.out.println(userName.length() + "#" + password.length());
+//            	System.out.println(uName.length() + " " + pass.length());
+
+                if ((userName).equals(uName) && (password).equals(pass)) {
 
                     login = true;
 
                     break;
                 }
+                i++;
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         
         return login;
+        //System.out.println("LOGIN : " + login);
+        //return true;
     }
 
-//    private boolean sendCertificate(String uName) throws IOException, ClassNotFoundException,
-//            GeneralSecurityException {
-//
-//        String value = "";
-//
-//        boolean isGood = false;
-//        String option = "cert";
-//
-//        oos.writeObject("");
-//        
-//        String optionEncrypted = asymmetricCrypto.EncryptStringAsymmetric(option, serverPublicKey);
-//        String signature = asymmetricCrypto.signMessagge(option, privateKey);
-//        oos.writeObject(new String[] {signature, optionEncrypted});
-//        certificate = asymmetricCrypto.getCertificate("src\\certificates\\" + uName + ".crt");
-//        byte[] array = concatanateByteArrays(asymmetricCrypto.signMessagge(certificate.toString(), privateKey).getBytes(), certificate.getEncoded());
-//        
-//        oos.writeObject(asymmetricCrypto.SymmetricFileEncryption(array, sessionKey));
-//        String cn = certificate.getSubjectX500Principal().toString().split(",")[0];
-//        oos.writeObject(asymmetricCrypto.EncryptStringSymmetric(cn, sessionKey));
-//        String[] dataFromServer = (String[]) ois.readObject();
-//                value = asymmetricCrypto.DecryptStringSymmetric(dataFromServer[1], sessionKey);
-//        if(!asymmetricCrypto.verifyDigitalSignature(value, dataFromServer[0], serverPublicKey)) {
-//        	alert("Intrusion has occured! Exiting application...");
-//        	System.exit(0);
-//        }
-//        if (("true").equals(value)) {
-//            isGood = true;
-//        }
-//
-//        return isGood;
-//    }
 
     protected static void alert(String message) {
 
@@ -402,7 +325,7 @@ public class SignInController {
     }
     
     /*
-     * Helper method that checks certificate existence, and crl list for user certificate
+     * Helper method that checks certificate existence, validity , and crl list for user certificate
      * 
      */
     private boolean checkCertificate(String pathToCertificate) {
@@ -410,10 +333,19 @@ public class SignInController {
     	boolean isGood = false;
     	
         try {
+            X509CRLEntry revokedCertificate = null;
+            X509CRL crl = null;
+
             CertificateFactory cFactory = CertificateFactory.getInstance("X.509");
             FileInputStream fis = new FileInputStream(pathToCertificate);
             certificate = (X509Certificate) cFactory.generateCertificate(fis);
             publicKey = certificate.getPublicKey();
+            crl = (X509CRL) cFactory.generateCRL(new DataInputStream(new FileInputStream("src/crl/crl.pem")));
+            revokedCertificate = crl.getRevokedCertificate(certificate.getSerialNumber());
+            if(revokedCertificate !=null){
+                alert("Certificate invalid! Exiting application");
+                System.exit(0);
+            }
 
 			certificate.checkValidity();
 			isGood = true;
@@ -422,5 +354,33 @@ public class SignInController {
 			e.printStackTrace();
 		} 
     	return isGood;
+    }
+    
+    private void encryptUserCredentialsFile() {
+    	try {
+			
+			File f = new File("src/users");
+	        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+	        keyGenerator.init(128);
+	        SecretKey sessionKey = keyGenerator.generateKey();
+	        privateKey = crypto.getPrivateKey("src/ca/privateCA.key");
+            byte[] encData = crypto.SymmetricFileEncryption(Files.readAllBytes(Paths.get("src/controllers/users.txt")), sessionKey);
+            String signature = crypto.signMessagge(Base64.getEncoder().encodeToString(encData), privateKey);
+            byte[] encKey = crypto.AsymmetricFileEncription(sessionKey.getEncoded(), crypto.getPublicKey("src/ca/publicCA.key"));
+//            System.out.println("KEY SIZE : " + encKey.length + " signature size : " + signature.getBytes().length
+//            		+ " DATA : " + encData.length);
+            System.out.println(signature);
+            System.out.println("Data : " + new String(encData));
+            System.out.println("ENC KEY : " + new String(encKey));
+
+            byte[] keyAndData = crypto.concatanateByteArrays(encKey, encData);
+         //   System.out.println(keyAndData.length);
+            byte[] signedKeyAndData = crypto.concatanateByteArrays(signature.getBytes(), keyAndData);
+        //    System.out.println(signedKeyAndData.length);
+            FileOutputStream fos = new FileOutputStream(new File("src/users"));
+            fos.write(signedKeyAndData);
+    	} catch (Exception e) {
+			e.printStackTrace();
+		} 
     }
 }

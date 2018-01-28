@@ -1,5 +1,6 @@
 package crypto;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,11 +35,6 @@ import javax.crypto.spec.IvParameterSpec;
 
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import sun.misc.BASE64Decoder;
-import sun.misc.BASE64Encoder;
 
 /*
  * Class that contains asymmetric and symmetric cryptography methods
@@ -150,6 +146,7 @@ public class Crypto {
             IOException, InvalidKeyException, NoSuchAlgorithmException {
         
         FileOutputStream fos; 
+        
         if(!append ) { 
         	fos = new FileOutputStream(output);
         } else {
@@ -323,7 +320,7 @@ public class Crypto {
     	
     	X509Certificate userCert = null;
 		try {
-			userCert = getCertificate("src/certificates" + userName + ".crt");
+			userCert = getCertificate("src/certificates/" + userName + ".crt");
 		} catch (CertificateException e) {
 			e.printStackTrace();
 		} catch (FileNotFoundException e) {
@@ -333,4 +330,21 @@ public class Crypto {
     	PublicKey publicKey = userCert.getPublicKey();
     	return publicKey;
     }
+    
+    public byte[] concatanateByteArrays(byte[] first, byte[] second) {
+    	
+    	ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    	try {
+			output.write(first);
+	    	output.write(second);
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    	byte[] concatanated = output.toByteArray();
+
+    	return concatanated;
+    }
+    
 }
